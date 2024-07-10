@@ -121,20 +121,6 @@ struct PinningManager {
         }
         
         var trustCertificateChain: [SecCertificate] = []
-
-        /*if #available(iOS 12.0, *) {
-            Kod Package'a transfer edilirse diye tutuluyor, daha sonra silinebilir.
-            Legacy Projeler için bu kısım gerekli
-            
-                for index in 0..<3 {
-                //0 > RSA 2048 bits (e 65537) / SHA256withRSA
-                //1 > 2048 bits (e 65537) / SHA384withRSA
-                //2 > RSA 4096 bits (e 65537) / SHA384withRSA
-                if let cert = SecTrustGetCertificateAtIndex(trust, index) { // RSA 2048 bits (e 65537) / SHA256withRSA
-                    trustCertificateChain.append(cert)
-                }
-            }
-        }*/
         
         if #available(iOS 15.0, *) {
             trustCertificateChain = SecTrustCopyCertificateChain(trust) as! [SecCertificate]
@@ -213,7 +199,6 @@ struct PinningManager {
     /// Konsola hata logları basılır
     /// - Parameter log: String
     private func bLog(_ log: String) {
-        
         print("BTrustLogger:", log)
         logBlock?()
     }
