@@ -3,7 +3,13 @@ import CryptoKit
 import Foundation
 
 struct PinningManager {
-
+    
+    /*
+     https://www.bugsee.com/blog/ssl-certificate-pinning-in-mobile-applications/
+     https://medium.com/lunasolutions/mastering-ssl-pinning-in-swift-no-third-party-libraries-required-42a377db80ff
+     https://medium.com/bimser-tech/ios-ssl-pinning-with-public-key-8ebdc2d32a9f
+     */
+    
     /// Common errors of SSL Pinning
     private enum PinningError: Error {
         
@@ -15,11 +21,11 @@ struct PinningManager {
         
         var localizedDescription: String {
             switch self {
-            case .noCertificatesFromServer: return "Can not retrieve certificate"
-            case .failedToGetPublicKey: return "Public Key (PK) could not fetch"
-            case .failedToGetDataFromPublicKey: return "Can not extract data from Public Key"
-            case .receivedWrongCertificate: return "Wrong Certificate"
-            case .failedToGetPublicKeySize: return "Can not retrieve key size"
+            case .noCertificatesFromServer: return "Sunucudan Sertifika Alınamadı"
+            case .failedToGetPublicKey: return "Public Key (PK) Alınamadı"
+            case .failedToGetDataFromPublicKey: return "Public Key (PK)'den Veri Çıkarılamadı"
+            case .receivedWrongCertificate: return "Yanlış sertifika"
+            case .failedToGetPublicKeySize: return "Public Key (PK) Size Alınamadı"
             }
         }
     }
@@ -47,7 +53,10 @@ struct PinningManager {
     init(pinnedKeyHashes: [String]) {
         self.pinnedKeyHashes = pinnedKeyHashes
     }
-
+    
+    /// Kütüphaneye dışardan kod çalıştırmaya yarar
+    var logBlock: (() -> ())? = nil
+    
     /// Yeni public key set etmek için
     /// - Parameter pk: String...
     mutating func setNewPK(_ pk: String...) {
@@ -82,7 +91,7 @@ struct PinningManager {
         if size == 512 {
             return .rsa4096
         }
-        
+        bLog(PinningError.failedToGetPublicKeySize.localizedDescription)
         throw PinningError.failedToGetPublicKeySize
     }
     
@@ -107,13 +116,16 @@ struct PinningManager {
     private func validateAndGetTrust(with challenge: URLAuthenticationChallenge) throws -> SecTrust {
         
         guard let trust = challenge.protectionSpace.serverTrust else {
+            bLog(PinningError.noCertificatesFromServer.localizedDescription)
             throw PinningError.noCertificatesFromServer
         }
         
         var trustCertificateChain: [SecCertificate] = []
 
-        if #available(iOS 12.0, *) {
-
+        /*if #available(iOS 12.0, *) {
+            Kod Package'a transfer edilirse diye tutuluyor, daha sonra silinebilir.
+            Legacy Projeler için bu kısım gerekli
+            
                 for index in 0..<3 {
                 //0 > RSA 2048 bits (e 65537) / SHA256withRSA
                 //1 > 2048 bits (e 65537) / SHA384withRSA
@@ -122,7 +134,7 @@ struct PinningManager {
                     trustCertificateChain.append(cert)
                 }
             }
-        }
+        }*/
         
         if #available(iOS 15.0, *) {
             trustCertificateChain = SecTrustCopyCertificateChain(trust) as! [SecCertificate]
@@ -138,7 +150,7 @@ struct PinningManager {
             }
         }
         
-        
+        bLog(PinningError.receivedWrongCertificate.localizedDescription)
         throw PinningError.receivedWrongCertificate
     }
     
@@ -164,12 +176,13 @@ struct PinningManager {
             }
             
             if publicKey == nil {
+                bLog(PinningError.failedToGetPublicKey.localizedDescription)
                 throw PinningError.failedToGetPublicKey
             }
             
             return publicKey!
         } else {
-            
+            bLog(PinningError.failedToGetPublicKey.localizedDescription)
             throw PinningError.failedToGetPublicKey
         }
     }
@@ -182,6 +195,7 @@ struct PinningManager {
     private func getKeyHash(of publicKey: SecKey, header: ASN1Header) throws -> String {
         
         guard let publicKeyCFData = SecKeyCopyExternalRepresentation(publicKey, nil) else {
+            bLog(PinningError.failedToGetDataFromPublicKey.localizedDescription)
             throw PinningError.failedToGetDataFromPublicKey
         }
         
@@ -194,5 +208,13 @@ struct PinningManager {
         let publicKeyHashData = sha256(publicKeyWithHeaderData)
         
         return publicKeyHashData.base64EncodedString()
+    }
+    
+    /// Konsola hata logları basılır
+    /// - Parameter log: String
+    private func bLog(_ log: String) {
+        
+        print("BTrustLogger:", log)
+        logBlock?()
     }
 }
