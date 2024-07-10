@@ -1,3 +1,7 @@
+import CommonCrypto
+import CryptoKit
+import Foundation
+
 struct PinningManager {
 
     /// Common errors of SSL Pinning
